@@ -1,0 +1,10 @@
+[package]
+name = "nuc-history"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+nuc-core.workspace = true
+rusqlite.workspace = true
+serde.workspace = true

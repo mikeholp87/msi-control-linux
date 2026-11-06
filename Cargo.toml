@@ -1,0 +1,37 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/nuc-core",
+    "crates/nuc-monitor",
+    "crates/nuc-power",
+    "crates/nuc-history",
+    "crates/nuc-diagnostics",
+    "crates/nuc-gui",
+    "crates/nuc-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["NUC Control project"]
+repository = "https://example.invalid/nuc-control"
+
+[workspace.dependencies]
+nuc-core = { path = "crates/nuc-core" }
+nuc-monitor = { path = "crates/nuc-monitor" }
+nuc-power = { path = "crates/nuc-power" }
+nuc-history = { path = "crates/nuc-history" }
+nuc-diagnostics = { path = "crates/nuc-diagnostics" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+thiserror = "2"
+chrono = { version = "0.4", features = ["serde"] }
+rusqlite = { version = "0.37", features = ["bundled"] }
+zbus = { version = "5", features = ["blocking"] }
+
+[profile.release]
+opt-level = 2
+lto = "thin"
+codegen-units = 1

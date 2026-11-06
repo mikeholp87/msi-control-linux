@@ -1,0 +1,13 @@
+[package]
+name = "nuc-diagnostics"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+nuc-core.workspace = true
+nuc-monitor.workspace = true
+nuc-power.workspace = true
+nuc-history.workspace = true
+serde.workspace = true
+serde_json.workspace = true

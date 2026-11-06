@@ -1,0 +1,16 @@
+[package]
+name = "nuc-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "nuc-control"
+path = "src/main.rs"
+
+[dependencies]
+nuc-core.workspace = true
+nuc-monitor.workspace = true
+nuc-power.workspace = true
+nuc-diagnostics.workspace = true
+serde_json.workspace = true
