@@ -1,0 +1,31 @@
+# NUC Control configuration example.
+# Location: ~/.config/nuc-control/config.toml
+# Everything is optional — missing sections/fields fall back to these values.
+
+[general]
+theme = "system"            # system | dark | light
+temp_unit = "Celsius"       # Celsius | Fahrenheit
+chart_refresh_ms = 1000
+start_page = "dashboard"
+compact_mode = false        # reserved; not implemented
+
+[monitoring]
+interval_ms = 2000          # sampler heartbeat; GUI applies live on Save (min 1000)
+gpu_enabled = true          # intel_gpu_top collector (needs CAP_PERFMON to yield data)
+record = false              # record samples into the history database (opt-in)
+record_interval_ms = 5000    # reserved for background service
+background_service = false  # not implemented in v1 (no root daemon by design)
+
+[alerts]
+cpu_temp_warm_c = 85.0      # advisory only — never modifies kernel protections
+nvme_temp_warm_c = 70.0
+fan_fault = true
+throttle_warn = true
+hysteresis_c = 3.0          # degrees below threshold before an alert clears
+above_samples = 3           # consecutive above-threshold samples before raising
+cooldown_s = 300            # per-alert notification cooldown
+
+[history]
+raw_retention_h = 24        # raw per-sample rows kept
+minute_agg_retention_days = 30
+max_db_mib = 128            # hard ceiling; oldest rows pruned first

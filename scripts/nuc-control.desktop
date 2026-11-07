@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=NUC Control — hardware & power monitor
+GenericName=Hardware Monitor
+Comment=Sensors, power, NVMe health and diagnostics for your mini PC (read-first)
+Exec=nuc-gui
+TryExec=nuc-gui
+Icon=utilities-system-monitor
+Terminal=false
+Categories=System;Monitor;
+Keywords=temperature;power;sensors;fan;nvme;smart;profiles;
+StartupNotify=true
