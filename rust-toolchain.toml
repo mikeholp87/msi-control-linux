@@ -1,0 +1,6 @@
+# Single source of truth for local builds and CI. Bump deliberately: new
+# stable clippy releases add lints that can fail `-D warnings`.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]
