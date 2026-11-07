@@ -25,7 +25,6 @@ pub struct General {
     pub chart_refresh_ms: u64,
     /// Initial sidebar page.
     pub start_page: String,
-    pub compact_mode: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -36,10 +35,6 @@ pub struct Monitoring {
     pub gpu_enabled: bool,
     /// Background/extended recording must be explicitly opted in.
     pub record: bool,
-    /// Sampling interval while recording in the background (ms).
-    pub record_interval_ms: u64,
-    /// Record even when the window is closed (needs the user service).
-    pub background_service: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -77,7 +72,6 @@ impl Default for General {
             temp_unit: TempUnit::Celsius,
             chart_refresh_ms: 1000,
             start_page: "dashboard".into(),
-            compact_mode: false,
         }
     }
 }
@@ -88,8 +82,6 @@ impl Default for Monitoring {
             interval_ms: 2000,
             gpu_enabled: true,
             record: false,
-            record_interval_ms: 5000,
-            background_service: false,
         }
     }
 }
@@ -245,7 +237,6 @@ mod tests {
         let cfg: Config = toml::from_str(just_interval).unwrap();
         assert_eq!(cfg.monitoring.interval_ms, 4000);
         assert!(cfg.monitoring.gpu_enabled);
-        assert_eq!(cfg.monitoring.record_interval_ms, 5000);
         assert_eq!(cfg.alerts.cpu_temp_warm_c, Some(85.0));
     }
 
@@ -267,6 +258,13 @@ mod tests {
             let loaded: Config = toml::from_str(&saved).unwrap();
             assert_eq!(loaded.monitoring.record, enabled);
         }
+    }
+
+    #[test]
+    fn legacy_reserved_keys_are_ignored() {
+        let old = "[general]\ncompact_mode = true\n[monitoring]\nrecord_interval_ms = 9000\nbackground_service = true\n";
+        let cfg: Config = toml::from_str(old).unwrap();
+        assert!(cfg.validate().is_ok());
     }
 
     #[test]

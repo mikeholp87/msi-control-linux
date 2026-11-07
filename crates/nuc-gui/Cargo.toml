@@ -2,11 +2,15 @@
 name = "nuc-gui"
 version.workspace = true
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 
 [[bin]]
 name = "nuc-gui"
 path = "src/main.rs"
+
+[lints]
+workspace = true
 
 [dependencies]
 nuc-core.workspace = true

@@ -4,7 +4,9 @@
 //! gaps (suspend, startup) yield `None` instead of a fabricated percentage.
 
 use crate::fs::{self, SourcePaths};
-use nuc_core::{CpuPolicy, CpuSnapshot, DeviceInfo, ThrottleInfo, Topology, energy_uj_to_watts};
+use nuc_core::{
+    CpuPolicy, CpuSnapshot, DeviceInfo, MutexExt, ThrottleInfo, Topology, energy_uj_to_watts,
+};
 use std::collections::BTreeMap;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -112,7 +114,7 @@ impl CpuMonitor {
     /// resume from suspend) yields `(None, _)`.
     fn sample_usage(&self, deltas_valid: bool) -> (Option<f64>, Vec<Option<f64>>) {
         let Some((agg, per_cpu)) = parse_cpu_stats(&self.paths.proc) else {
-            *self.prev_usage.lock().unwrap() = None;
+            *self.prev_usage.lock_or_recover() = None;
             return (None, Vec::new());
         };
         let current = PrevSample {
@@ -120,7 +122,7 @@ impl CpuMonitor {
             total: agg,
         };
         let saved_prev: Option<PrevSample> = {
-            let mut slot = self.prev_usage.lock().unwrap();
+            let mut slot = self.prev_usage.lock_or_recover();
             let old = slot.clone();
             *slot = Some(current);
             old
@@ -255,7 +257,7 @@ impl CpuMonitor {
                 fs::read_u64_opt(&dir.join("package_throttle_total_time_ms"));
             info.package_max_time_ms = fs::read_u64_opt(&dir.join("package_throttle_max_time_ms"));
         }
-        let mut prev = self.prev_throttle.lock().unwrap();
+        let mut prev = self.prev_throttle.lock_or_recover();
         let new_core = info
             .core_throttle_count
             .zip(prev.0)
@@ -275,7 +277,7 @@ impl CpuMonitor {
     /// Interval power (W) from consecutive package energy readings, with RAPL
     /// wraparound handled via `max_energy_range_uj`.
     pub fn package_interval_power(&self, deltas_valid: bool) -> Option<f64> {
-        let mut prev = self.prev_energy.lock().unwrap();
+        let mut prev = self.prev_energy.lock_or_recover();
         let Some(energy) = self.read_package_energy_uj() else {
             prev.energy_uj = None;
             prev.ts = None;

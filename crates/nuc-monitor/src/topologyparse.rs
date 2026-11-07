@@ -37,8 +37,12 @@ pub fn discover(paths: &SourcePaths) -> nuc_core::Result<Topology> {
     let mut capacities: BTreeMap<u32, u64> = BTreeMap::new();
     for (idx, path) in &entries {
         let topo = path.join("topology");
-        let package = fs::read_u64_opt(&topo.join("physical_package_id")).unwrap_or(0) as u32;
-        let core_id = fs::read_u64_opt(&topo.join("core_id")).unwrap_or(*idx as u64) as u32;
+        let package = fs::read_u64_opt(&topo.join("physical_package_id"))
+            .and_then(|v| u32::try_from(v).ok())
+            .unwrap_or(0);
+        let core_id = fs::read_u64_opt(&topo.join("core_id"))
+            .and_then(|v| u32::try_from(v).ok())
+            .unwrap_or(*idx);
         cores.entry((package, core_id)).or_default().push(*idx);
         if let Some(cap) = fs::read_u64_opt(&path.join("cpu_capacity")) {
             capacities.insert(*idx, cap);
@@ -64,13 +68,13 @@ pub fn discover(paths: &SourcePaths) -> nuc_core::Result<Topology> {
     }
 
     let mut top = Topology {
-        logical_cpus: entries.len() as u32,
+        logical_cpus: u32::try_from(entries.len()).unwrap_or(u32::MAX),
         cores: Vec::with_capacity(n_cores),
         classification_basis: String::new(),
     };
 
     for (next_order, ((_package, _core_id), mut threads)) in cores.into_iter().enumerate() {
-        let next_order = next_order as u32;
+        let next_order = u32::try_from(next_order).unwrap_or(u32::MAX);
         threads.sort();
         let capacity = capacities.get(&threads[0]).copied();
         let kind = if mixed_threads {

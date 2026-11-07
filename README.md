@@ -54,7 +54,7 @@ The package script requires `dpkg-dev` and a native amd64 build host. Runtime
 library dependencies are derived from the built binaries with `dpkg-shlibdeps`.
 
 Installs `/usr/bin/nuc-control`, `/usr/bin/nuc-gui`,
-`/usr/share/applications/nuc-control.desktop` (GUI shown as
+`/usr/share/applications/org.nuccontrol.gui.desktop` (GUI shown as
 "NUC Control — hardware & power monitor"), `/usr/share/doc/nuc-control/…`.
 
 ## Configuration
@@ -68,14 +68,11 @@ theme = "system"            # system | dark | light
 temp_unit = "Celsius"
 chart_refresh_ms = 1000
 start_page = "dashboard"
-compact_mode = false        # reserved; not implemented
 
 [monitoring]
 interval_ms = 2000          # sampler heartbeat (GUI applies live on Save)
 gpu_enabled = true
 record = false              # raw recording is opt-in (GUI Record switch)
-record_interval_ms = 5000    # reserved for background service
-background_service = false  # reserved; no background service in v1
 
 [alerts]
 cpu_temp_warm_c = 85.0

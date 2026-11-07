@@ -10,6 +10,7 @@ use adw::prelude::*;
 use libadwaita as adw;
 use std::sync::{Arc, Mutex};
 
+use nuc_core::MutexExt;
 use nuc_core::config::Config;
 use nuc_history::HistoryStore;
 use nuc_monitor::engine::{SampleHandle, SamplerConfig, SamplerControls, start_sampler};
@@ -118,7 +119,7 @@ fn main() {
                 let state = nuc_power::ProfileClient::new()
                     .and_then(|client| client.state())
                     .ok();
-                *profile_worker.lock().unwrap() = state;
+                *profile_worker.lock_or_recover() = state;
                 match stop_profile.recv_timeout(std::time::Duration::from_secs(2)) {
                     Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
                     _ => break,
@@ -130,7 +131,7 @@ fn main() {
             sampler_cfg,
             prefs,
             Some(Box::new(move |snap| {
-                snap.profile = profile.lock().unwrap().clone();
+                snap.profile = profile.lock_or_recover().clone();
             })),
         )
         .unwrap_or_else(|e| {

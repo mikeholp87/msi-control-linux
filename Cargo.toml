@@ -13,9 +13,10 @@ members = [
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
 license = "MIT"
 authors = ["NUC Control project"]
-repository = "https://example.invalid/nuc-control"
+repository = "https://github.com/mikeholp87/msi-control-linux"
 
 [workspace.dependencies]
 nuc-core = { path = "crates/nuc-core" }
@@ -31,7 +32,12 @@ chrono = { version = "0.4", features = ["serde"] }
 rusqlite = { version = "0.37", features = ["bundled"] }
 zbus = { version = "5", features = ["blocking"] }
 
+[workspace.lints.clippy]
+cast_possible_truncation = "warn"
+cast_sign_loss = "warn"
+
 [profile.release]
+strip = true
 opt-level = 2
 lto = "thin"
 codegen-units = 1

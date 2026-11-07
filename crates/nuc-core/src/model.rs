@@ -60,11 +60,11 @@ pub struct Topology {
 
 impl Topology {
     pub fn physical_cores(&self) -> u32 {
-        self.cores.len() as u32
+        u32::try_from(self.cores.len()).unwrap_or(u32::MAX)
     }
 
     pub fn count(&self, kind: CoreKind) -> u32 {
-        self.cores.iter().filter(|c| c.kind == kind).count() as u32
+        u32::try_from(self.cores.iter().filter(|c| c.kind == kind).count()).unwrap_or(u32::MAX)
     }
 }
 

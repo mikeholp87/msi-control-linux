@@ -113,7 +113,7 @@ impl FanMonitor {
                 let raw = fs::read_f64_opt(&c.hwmon_dir.join(format!("fan{}_input", c.channel)));
                 let alarm = fs::read_i64_opt(&c.hwmon_dir.join(format!("fan{}_alarm", c.channel)))
                     .map(|v| v != 0);
-                let read_ms = t0.elapsed().as_millis() as u64;
+                let read_ms = nuc_core::millis_u64(t0.elapsed());
                 if raw.is_none() {
                     stale = true;
                 }

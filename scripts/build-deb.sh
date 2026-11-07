@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds an amd64 .deb for NUC Control into target/debian/.
 # Layout: /usr/bin/{nuc-control,nuc-gui}, .desktop entry,
-# /usr/share/doc/nuc-control/{README.md,docs/*}, copyright.
+# /usr/share/doc/nuc-control/{README.md,usage/hardware docs}, copyright.
 # Requires: cargo, gcc, dpkg-dev.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -27,22 +27,23 @@ mkdir -p "$pkgroot/usr/bin" \
 
 install -m 755 target/release/nuc-control "$pkgroot/usr/bin/"
 install -m 755 target/release/nuc-gui "$pkgroot/usr/bin/"
-install -m 755 scripts/nuc-control.desktop "$pkgroot/usr/share/applications/"
+install -m 644 scripts/org.nuccontrol.gui.desktop "$pkgroot/usr/share/applications/"
 install -m 644 README.md docs/hardware-capabilities.md docs/usage.md \
-	docs/delivery-report.md docs/audit-report.md docs/nuc-control-config.toml.example \
+	docs/nuc-control-config.toml.example \
 	"$pkgroot/usr/share/doc/nuc-control/"
+install -m 644 LICENSE "$pkgroot/usr/share/doc/nuc-control/LICENSE"
 install -m 644 debian-packaging/copyright "$pkgroot/usr/share/doc/nuc-control/copyright"
 
 cat >"$pkgroot/DEBIAN/control" <<EOF
 Package: nuc-control
 Version: $version
 Architecture: amd64
-Maintainer: NUC Control project <local@example.invalid>
+Maintainer: NUC Control project <mikeholp87@users.noreply.github.com>
 Depends: libgtk-4-1 (>= 4.10), libadwaita-1-0 (>= 1.4), udisks2, power-profiles-daemon
 Recommends: polkitd
 Section: utils
 Priority: optional
-Homepage: https://example.invalid/nuc-control
+Homepage: https://github.com/mikeholp87/msi-control-linux
 Description: MSI mini PC hardware & power monitor (read-first)
  Native GTK4/libadwaita GUI + CLI reporting sensors, CPU/GPU state, RAPL
  power, NVMe SMART health and power-profile state. Read-only by default;

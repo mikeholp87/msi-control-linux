@@ -3,6 +3,7 @@ use nuc_monitor::engine::{Engine, SamplerConfig};
 use nuc_monitor::fs::SourcePaths;
 use std::time::Duration;
 
+#[allow(clippy::cast_possible_truncation)] // example output only
 fn main() {
     let paths = SourcePaths::system();
     let mut engine = Engine::build(
@@ -25,7 +26,7 @@ fn main() {
         snap.cpu
             .usage
             .iter()
-            .map(|v| v.map(|f| f as i64))
+            .map(|v| v.map(|f| f.round().clamp(0.0, 1e12) as i64))
             .collect::<Vec<_>>()
     );
     println!(

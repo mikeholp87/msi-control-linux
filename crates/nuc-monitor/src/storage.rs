@@ -5,7 +5,7 @@
 //! with a source label and interpreted conservatively.
 
 use crate::fs::{self, SourcePaths};
-use nuc_core::{NvmeHealth, PartitionInfo, StorageDevice};
+use nuc_core::{MutexExt, NvmeHealth, PartitionInfo, StorageDevice};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -25,7 +25,7 @@ impl StorageMonitor {
 
     /// Replace the injected health map (call after D-Bus refresh).
     pub fn inject_health(&self, map: HashMap<String, NvmeHealth>) {
-        *self.health.lock().unwrap() = map;
+        *self.health.lock_or_recover() = map;
     }
 
     pub fn discover(&self) -> Vec<StorageDevice> {

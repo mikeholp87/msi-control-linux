@@ -10,13 +10,19 @@
 //! atomic shared state so the sampler thread never blocks on the pipe.
 
 use crate::fs::{SourcePaths, read_string_opt};
-use nuc_core::{GpuEngine, GpuSnapshot};
+use nuc_core::{GpuEngine, GpuSnapshot, MutexExt};
 use serde::Deserialize;
 use serde_json::Value;
-use std::io::BufRead;
+use std::io::{BufRead, Read};
 use std::process::{Child, ChildStdout, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
+
+/// Absolute locations only: the app never resolves helpers through `$PATH`.
+const INTEL_GPU_TOP_PATHS: [&str; 2] = ["/usr/bin/intel_gpu_top", "/usr/local/bin/intel_gpu_top"];
+/// Cap on stderr bytes parsed; the rest is drained so the child never blocks.
+const STDERR_PARSE_LIMIT: u64 = 1 << 20;
+const PERFMON_NOTE: &str = "requires CAP_PERFMON (kernel refuses unprivileged access)";
 
 pub struct GpuMonitor {
     paths: SourcePaths,
@@ -151,7 +157,7 @@ impl GpuMonitor {
         let mut guard = self.collector.lock().ok()?;
         match guard.as_mut() {
             Some(c) => {
-                let s = c.latest.lock().unwrap().clone();
+                let s = c.latest.lock_or_recover().clone();
                 let running = c.child.try_wait().ok().flatten().is_none();
                 let fresh = s.updated_at.is_some_and(|t| {
                     t.elapsed().as_millis()
@@ -196,10 +202,19 @@ impl GpuMonitor {
                 "no Intel GPU detected".into(),
             ));
         }
-        if self.collector.lock().unwrap().is_some() {
+        if self.collector.lock_or_recover().is_some() {
             return Ok(()); // already running; never spawn duplicates
         }
-        let child = Command::new("intel_gpu_top")
+        let Some(tool) = INTEL_GPU_TOP_PATHS
+            .iter()
+            .map(std::path::Path::new)
+            .find(|p| p.is_file())
+        else {
+            let reason = "intel_gpu_top (intel-gpu-tools) is not installed".to_string();
+            self.start_error = Some(reason.clone());
+            return Err(nuc_core::AppError::Unsupported(reason));
+        };
+        let child = Command::new(tool)
             .args(["-J", "-s", &self.interval_ms.to_string(), "-o", "-"])
             .args([
                 "-d",
@@ -247,23 +262,28 @@ impl GpuMonitor {
         let errors = std::thread::Builder::new()
             .name("intel_gpu_top-stderr".into())
             .spawn(move || {
-                if let Some(stderr) = stderr {
-                    for line in std::io::BufReader::new(stderr)
+                if let Some(mut stderr) = stderr {
+                    for line in std::io::BufReader::new((&mut stderr).take(STDERR_PARSE_LIMIT))
                         .lines()
                         .map_while(Result::ok)
                     {
                         let reason = if line.contains("Permission denied")
                             || line.contains("Operation not permitted")
                         {
-                            "requires CAP_PERFMON (kernel refuses unprivileged access)".to_string()
+                            PERFMON_NOTE.to_string()
                         } else {
                             format!(
                                 "intel_gpu_top stderr: {}",
                                 line.chars().take(512).collect::<String>()
                             )
                         };
-                        *note_r.lock().unwrap() = Some(reason);
+                        let mut note = note_r.lock_or_recover();
+                        // A permission diagnosis is the actionable one; keep it.
+                        if note.as_deref() != Some(PERFMON_NOTE) {
+                            *note = Some(reason);
+                        }
                     }
+                    let _ = std::io::copy(&mut stderr, &mut std::io::sink());
                 }
             })
             .map_err(|e| nuc_core::AppError::Other(e.to_string()))?;
@@ -273,19 +293,19 @@ impl GpuMonitor {
             .name("intel_gpu_top-json".into())
             .spawn(move || {
                 if let Err(error) = read_gpu_samples(std::io::BufReader::new(stdout), |sample| {
-                    *latest_r.lock().unwrap() = sample;
+                    *latest_r.lock_or_recover() = sample;
                 }) {
-                    *note_r.lock().unwrap() = Some(format!("intel_gpu_top output: {error}"));
+                    *note_r.lock_or_recover() = Some(format!("intel_gpu_top output: {error}"));
                 }
             })
             .map_err(|e| nuc_core::AppError::Other(e.to_string()))?;
         collector.readers.push(reader);
-        *self.collector.lock().unwrap() = Some(collector);
+        *self.collector.lock_or_recover() = Some(collector);
         Ok(())
     }
 
     pub fn stop_utilization(&self) {
-        *self.collector.lock().unwrap() = None; // Drop kills child & joins reader
+        *self.collector.lock_or_recover() = None; // Drop kills child & joins reader
     }
 }
 

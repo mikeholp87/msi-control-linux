@@ -168,7 +168,7 @@ impl Engine {
             rapl: RaplMonitor::new(paths.clone()),
             memory: MemoryMonitor::new(paths.clone()),
             storage: StorageMonitor::new(paths.clone()),
-            gpu: GpuMonitor::new(paths.clone(), interval.as_millis() as u64),
+            gpu: GpuMonitor::new(paths.clone(), nuc_core::millis_u64(interval)),
             gpu_enabled: config.gpu_enabled,
             gpu_attempted: false,
             interval,
@@ -209,7 +209,7 @@ impl Engine {
     fn set_interval(&mut self, interval: Duration) {
         if self.interval != interval {
             self.interval = interval;
-            self.gpu.set_interval_ms(interval.as_millis() as u64);
+            self.gpu.set_interval_ms(nuc_core::millis_u64(interval));
             self.gpu_attempted = false;
         }
     }
@@ -219,7 +219,7 @@ impl Engine {
     fn deltas_valid(&mut self) -> (bool, i64) {
         // Wall time includes suspend; CLOCK_MONOTONIC does not on Linux.
         let now = nuc_core::utc_now_ms();
-        let nominal_gap = (4 * self.interval.as_millis() as i64).max(8_000);
+        let nominal_gap = (4 * nuc_core::millis_i64(self.interval)).max(8_000);
         let (valid, dt) = match self.prev_ts {
             None => (false, 0),
             Some(prev) => {

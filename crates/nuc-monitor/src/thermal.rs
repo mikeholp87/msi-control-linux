@@ -201,7 +201,7 @@ impl ThermalMonitor {
                 let t0 = std::time::Instant::now();
                 match read_channel(&m) {
                     Some(mut t) => {
-                        let ms = t0.elapsed().as_millis() as u64;
+                        let ms = nuc_core::millis_u64(t0.elapsed());
                         if ms >= SLOW_READ_MS {
                             self.slow_ids.insert(m.id.clone());
                             let note = format!(
@@ -273,7 +273,7 @@ impl ThermalMonitor {
             }
             let t0 = std::time::Instant::now();
             let value = fs::read_i64_opt(&zone.join("temp")).map(millidegree_to_celsius);
-            let read_ms = t0.elapsed().as_millis() as u64;
+            let read_ms = nuc_core::millis_u64(t0.elapsed());
             let mut t = Temperature {
                 id,
                 label: zone_type.clone(),

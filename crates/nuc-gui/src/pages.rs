@@ -14,7 +14,7 @@ use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use nuc_core::{AlertEvent, Snapshot, TempUnit};
+use nuc_core::{AlertEvent, MutexExt, Snapshot, TempUnit};
 
 use crate::GuiState;
 use crate::chart;
@@ -28,7 +28,7 @@ struct Ui {
 
 pub fn build(app: &adw::Application, state: Arc<Mutex<GuiState>>, startup_warning: Option<String>) {
     let mut timers = Vec::new();
-    let cfg = state.lock().unwrap().cfg.clone();
+    let cfg = state.lock_or_recover().cfg.clone();
     app.style_manager()
         .set_color_scheme(match cfg.general.theme.as_str() {
             "dark" => adw::ColorScheme::ForceDark,
@@ -823,13 +823,17 @@ fn build_settings(state: Arc<Mutex<GuiState>>, stack: &gtk::Stack) {
             Ok(st) => st,
             Err(_) => return,
         };
-        st.cfg.monitoring.interval_ms = interval_s.value() as u64;
+        // SpinButton ranges are bounded and positive; truncation is intended.
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        {
+            st.cfg.monitoring.interval_ms = interval_s.value() as u64;
+            st.cfg.alerts.above_samples = above_s.value() as u32;
+        }
         st.cfg.monitoring.gpu_enabled = gpu_s.is_active();
         st.cfg.monitoring.record = record_s.is_active();
         st.cfg.alerts.cpu_temp_warm_c = Some(cwarm_s.value());
         st.cfg.alerts.nvme_temp_warm_c = Some(nwarm_s.value());
         st.cfg.alerts.hysteresis_c = hyst_s.value();
-        st.cfg.alerts.above_samples = above_s.value() as u32;
         st.handle.set_interval(std::time::Duration::from_millis(
             st.cfg.monitoring.interval_ms,
         ));
@@ -1042,7 +1046,7 @@ fn update_power(ui: &mut Ui, snap: &Snapshot) {
         if !ui.power.user_touched.get() {
             for (i, name) in p.profiles.iter().enumerate() {
                 if Some(name.as_str()) == p.active.as_deref() {
-                    ui.power.combo.set_selected(i as u32);
+                    ui.power.combo.set_selected(u32::try_from(i).unwrap_or(0));
                 }
             }
         }

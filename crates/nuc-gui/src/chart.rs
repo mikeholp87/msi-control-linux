@@ -133,7 +133,7 @@ mod tests {
         stroke_series(&context, &samples, (0.0, 4.0), 100.0, 100.0, TEMP);
         drop(context);
         surface.flush();
-        let stride = surface.stride() as usize;
+        let stride = usize::try_from(surface.stride()).unwrap_or(0);
         let data = surface.data().unwrap();
         assert_eq!(
             &data[50 * stride + 50 * 4..50 * stride + 51 * 4],

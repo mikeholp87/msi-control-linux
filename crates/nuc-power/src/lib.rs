@@ -356,10 +356,7 @@ fn attr_u64(attrs: &HashMap<String, Value>, key: &str) -> Option<u64> {
 }
 
 fn attr_u8(attrs: &HashMap<String, Value>, key: &str) -> Option<u8> {
-    match attr_u64(attrs, key) {
-        Some(v) if v <= u8::MAX as u64 => Some(v as u8),
-        _ => None,
-    }
+    attr_u64(attrs, key).and_then(|v| u8::try_from(v).ok())
 }
 
 /// Kelvin (u16) → °C. Zero means "not implemented" per NVMe spec.

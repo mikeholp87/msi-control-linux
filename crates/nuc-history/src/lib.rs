@@ -10,7 +10,7 @@
 //! - the store is synchronous (`Mutex<Connection>`); the GUI flushes its
 //!   buffer on the record heartbeat and queries on idle.
 
-use nuc_core::{AppError, Snapshot};
+use nuc_core::{AppError, MutexExt, Snapshot};
 use rusqlite::Connection;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -66,12 +66,29 @@ pub struct HistoryStore {
     buf: Mutex<Vec<SampleRow>>,
 }
 
+/// Telemetry history is per-user: directory 0700, database 0600 (SQLite
+/// creates the WAL/SHM sidecars with the database's mode).
+fn private_perms(dir: &Path, db: &Path) -> nuc_core::Result<()> {
+    use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
+    let io = |e: std::io::Error| AppError::Other(format!("history permissions: {e}"));
+    std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700)).map_err(io)?;
+    std::fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .open(db)
+        .map_err(io)?;
+    std::fs::set_permissions(db, std::fs::Permissions::from_mode(0o600)).map_err(io)
+}
+
 impl HistoryStore {
     /// Open (creating if needed) a store at `dir/history.db`, applying schema
     /// migrations and WAL mode.
     pub fn open_in_dir(dir: &Path) -> nuc_core::Result<HistoryStore> {
         std::fs::create_dir_all(dir).map_err(|e| AppError::Other(format!("history dir: {e}")))?;
         let db = dir.join(DEFAULT_DB_NAME);
+        private_perms(dir, &db)?;
         let conn = Connection::open(&db)
             .map_err(|e| AppError::Other(format!("open {}: {e}", db.display())))?;
         conn.busy_timeout(std::time::Duration::from_secs(5))
@@ -119,22 +136,22 @@ impl HistoryStore {
     /// the DB until `flush()` — cheap for the sampler loop.
     pub fn record(&self, snap: &Snapshot) {
         let row = row_from(snap);
-        self.buf.lock().expect("history buffer").push(row);
+        self.buf.lock_or_recover().push(row);
     }
 
     /// Number of rows waiting for `flush()`.
     pub fn buffered(&self) -> usize {
-        self.buf.lock().expect("history buffer").len()
+        self.buf.lock_or_recover().len()
     }
 
     /// Write buffered rows in a single transaction. Returns rows written.
     pub fn flush(&self) -> nuc_core::Result<usize> {
-        let mut buf = self.buf.lock().expect("history buffer");
+        let mut buf = self.buf.lock_or_recover();
         if buf.is_empty() {
             return Ok(0);
         }
         let rows = buf.len();
-        let mut conn = self.conn.lock().expect("history db");
+        let mut conn = self.conn.lock_or_recover();
         {
             let tx = conn
                 .transaction()
@@ -178,7 +195,7 @@ impl HistoryStore {
     /// Aggregate any fully-covered raw minutes newer than the last processed
     /// one into the `minutes` table. Returns number of minutes written.
     pub fn aggregate_minutes(&self) -> nuc_core::Result<usize> {
-        let mut conn = self.conn.lock().expect("history db");
+        let mut conn = self.conn.lock_or_recover();
         let up_to: i64 = get_meta(&conn, "agg_up_to_ms")
             .and_then(|v| v.parse().ok())
             .unwrap_or(0);
@@ -264,7 +281,7 @@ impl HistoryStore {
 
     /// Append an event row (alerts, profile switches, diagnostics…).
     pub fn record_event(&self, ts_ms: i64, kind: &str, message: &str) -> nuc_core::Result<()> {
-        let conn = self.conn.lock().expect("history db");
+        let conn = self.conn.lock_or_recover();
         conn.execute(
             "INSERT INTO events (ts_ms, kind, message) VALUES (?1, ?2, ?3)",
             rusqlite::params![ts_ms, kind, message],
@@ -275,7 +292,7 @@ impl HistoryStore {
 
     /// Raw samples in [from_ms, to_ms], ordered by time.
     pub fn query_samples(&self, from_ms: i64, to_ms: i64) -> nuc_core::Result<Vec<SampleRow>> {
-        let conn = self.conn.lock().expect("history db");
+        let conn = self.conn.lock_or_recover();
         let mut stmt = conn
             .prepare(
                 "SELECT ts_ms, deltas_valid, cpu_util, pkg_power_w, cpu_temp_c, nvme_temp_c, \
@@ -309,7 +326,7 @@ impl HistoryStore {
 
     /// Minute aggregates in [from_ms, to_ms], ordered by time.
     pub fn query_minutes(&self, from_ms: i64, to_ms: i64) -> nuc_core::Result<Vec<MinuteRow>> {
-        let conn = self.conn.lock().expect("history db");
+        let conn = self.conn.lock_or_recover();
         let mut stmt = conn
             .prepare(
                 "SELECT ts_ms, coverage, delta_samples, cpu_util_avg, cpu_util_max, \
@@ -345,7 +362,7 @@ impl HistoryStore {
 
     /// Events in [from_ms, to_ms] (ts, kind, message).
     pub fn query_events(&self, from_ms: i64, to_ms: i64) -> nuc_core::Result<Vec<EventRow>> {
-        let conn = self.conn.lock().expect("history db");
+        let conn = self.conn.lock_or_recover();
         let mut stmt = conn
             .prepare(
                 "SELECT ts_ms, kind, message FROM events WHERE ts_ms >= ?1 AND ts_ms <= ?2 \
@@ -374,7 +391,7 @@ impl HistoryStore {
         minutes_days: u32,
         max_mib: u32,
     ) -> nuc_core::Result<(usize, usize)> {
-        let conn = self.conn.lock().expect("history db");
+        let conn = self.conn.lock_or_recover();
         let now = now_ms();
         let raw_cutoff = now - (raw_hours as i64) * 3_600_000;
         let min_cutoff = now - (minutes_days as i64) * 86_400_000;
@@ -442,19 +459,19 @@ impl HistoryStore {
 
     /// Size on disk (main DB file, bytes) for the settings UI.
     pub fn size_bytes(&self) -> nuc_core::Result<u64> {
-        let conn = self.conn.lock().expect("history db");
+        let conn = self.conn.lock_or_recover();
         let pages: i64 = conn
             .query_row("PRAGMA page_count", [], |r| r.get(0))
             .map_err(db_err)?;
         let ps: i64 = conn
             .query_row("PRAGMA page_size", [], |r| r.get(0))
             .map_err(db_err)?;
-        Ok((pages * ps).max(0) as u64)
+        Ok(u64::try_from((pages * ps).max(0)).unwrap_or(0))
     }
 
     /// Row counts for the diagnostics page.
     pub fn row_counts(&self) -> nuc_core::Result<(i64, i64, i64)> {
-        let conn = self.conn.lock().expect("history db");
+        let conn = self.conn.lock_or_recover();
         let s: i64 = conn
             .query_row("SELECT COUNT(*) FROM samples", [], |r| r.get(0))
             .map_err(db_err)?;
@@ -524,7 +541,7 @@ fn minute_floor(ts_ms: i64) -> i64 {
 pub fn now_ms() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
+        .map(nuc_core::millis_i64)
         .unwrap_or(0)
 }
 
@@ -641,8 +658,8 @@ mod tests {
     fn now() -> i64 {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
+            .map(nuc_core::millis_i64)
             .unwrap()
-            .as_millis() as i64
     }
 
     fn snap(ts: i64, power: Option<f64>, temp: Option<f64>, util: Option<f64>) -> Snapshot {
@@ -863,5 +880,19 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(row_from(&s).fan_rpm, None);
+    }
+
+    #[test]
+    fn history_files_are_private() {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!("nuc-hist-perm-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = HistoryStore::open_in_dir(&dir).unwrap();
+        store.flush().unwrap();
+        let mode = |p: &Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+        assert_eq!(mode(&dir), 0o700);
+        assert_eq!(mode(&dir.join(DEFAULT_DB_NAME)), 0o600);
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

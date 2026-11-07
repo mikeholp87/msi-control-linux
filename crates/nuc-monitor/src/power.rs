@@ -7,7 +7,7 @@
 //! package measurement.
 
 use crate::fs::{self, SourcePaths};
-use nuc_core::{RaplConstraint, RaplZone, energy_uj_to_watts};
+use nuc_core::{MutexExt, RaplConstraint, RaplZone, energy_uj_to_watts};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Instant;
@@ -157,7 +157,7 @@ impl RaplMonitor {
     pub fn sample(&self, deltas_valid: bool) -> Vec<RaplZone> {
         let now = Instant::now();
         let mut zones = Vec::new();
-        let mut prev = self.prev.lock().unwrap();
+        let mut prev = self.prev.lock_or_recover();
         let mut taken = std::mem::take(&mut *prev);
         let mut next = HashMap::new();
         for z in self.enumerate() {
