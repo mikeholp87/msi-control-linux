@@ -67,6 +67,8 @@ rm -r "$pkgroot/debian"
 # remove trailing whitespace that lintian dislikes in control
 sed -i 's/[ \t]*$//' "$pkgroot/DEBIAN/control"
 
+find "$pkgroot" -type d -exec chmod 755 {} +
+
 echo "== dpkg-deb --build"
 dpkg-deb --root-owner-group --build "$pkgroot" && dpkg-deb --info "$out/nuc-control_${version}_amd64.deb"
 echo "built: $out/nuc-control_${version}_amd64.deb"

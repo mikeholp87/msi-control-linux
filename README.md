@@ -96,5 +96,6 @@ aggregates; automatic retention pruning).
 
 - `docs/hardware-capabilities.md` — verified capability matrix for this machine
 - `docs/usage.md` — CLI/GUI walkthrough, diagnostics categories, alert behavior
+- `docs/hardware-checklist.md` — manual desktop/hardware verification steps
 - `docs/delivery-report.md` — final engineering summary + compatibility matrix
 - `docs/audit-report.md` — resolved bugs, verification and improvement priorities

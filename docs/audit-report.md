@@ -172,3 +172,27 @@ suspend/resume on physical hardware, package installation, older distributions,
 fresh registry/yanked advisories or unreadable Git history. Jev scoring was not
 used after its earlier call reported a missing API key; local tests and
 independent source review provide the verification here.
+
+## Follow-up — 2026-11-07
+
+Resolved after the second audit pass:
+
+- **zbus 6 migration (item 17).** `zbus` 5 to 6.2.1; `zvariant*` and
+  `zbus_names` unmaintained advisories are gone and `cargo audit` is clean.
+  zbus 6 is async-only, so `nuc-power` wraps each call in `zbus::block_on`
+  behind its unchanged synchronous API. Live read-only checks passed against
+  power-profiles-daemon, UDisks2 NVMe SMART and systemd unit queries. Profile
+  *writes* were not exercised. MSRV is now 1.89 (a zbus requirement).
+- **Item 19.** CI (`.github/workflows/ci.yml`) runs fmt, clippy `-D warnings`,
+  tests, shellcheck and `cargo audit`. Desktop and hardware steps that CI
+  cannot cover are in `hardware-checklist.md`; they have not been run.
+- **Item 20.** Inactive config keys removed (old files containing them still
+  load); desktop entry renamed to the application ID; maintainer and homepage
+  point at the GitHub repository; `LICENSE` added; internal reports no longer
+  ship in the package.
+- **Robustness.** Poisoned mutexes no longer cascade into the GUI
+  (`MutexExt::lock_or_recover`); `intel_gpu_top` is launched by absolute path,
+  its stderr parse is capped and a CAP_PERFMON diagnosis is not overwritten;
+  history directory is 0700 and database 0600; lossy `as` casts replaced with
+  checked conversions and enforced by workspace lints; release binaries are
+  stripped (5.1/5.5 MB to 4.2/4.5 MB); package directories are 0755.

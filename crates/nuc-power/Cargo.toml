@@ -11,3 +11,4 @@ workspace = true
 [dependencies]
 nuc-core.workspace = true
 zbus.workspace = true
+serde.workspace = true

@@ -12,8 +12,49 @@
 
 use nuc_core::{AppError, NvmeHealth, PowerProfileState};
 use std::collections::HashMap;
-use zbus::blocking::Connection;
-use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
+use zbus::{OwnedObjectPath, OwnedVariant as OwnedValue, Variant as Value};
+
+use blocking::{Connection, Proxy};
+
+/// zbus 6 is async-only. These thin wrappers drive each call to completion
+/// with `zbus::block_on`, keeping this crate's public API synchronous.
+mod blocking {
+
+    #[derive(Clone)]
+    pub struct Connection(zbus::Connection);
+
+    impl Connection {
+        pub fn system() -> zbus::Result<Self> {
+            zbus::block_on(zbus::Connection::system()).map(Self)
+        }
+    }
+
+    pub struct Proxy<'a>(zbus::Proxy<'a>, Connection);
+
+    impl<'a> Proxy<'a> {
+        pub fn new(
+            conn: &Connection,
+            dest: &'a str,
+            path: &'a str,
+            iface: &'a str,
+        ) -> zbus::Result<Self> {
+            zbus::block_on(zbus::Proxy::new(&conn.0, dest, path, iface))
+                .map(|p| Self(p, conn.clone()))
+        }
+
+        pub fn call<B, R>(&self, method: &'static str, body: &B) -> zbus::Result<R>
+        where
+            B: serde::ser::Serialize + zbus::DynamicType,
+            R: for<'d> zbus::wire::DynamicDeserialize<'d>,
+        {
+            zbus::block_on(self.0.call(method, body))
+        }
+
+        pub fn connection(&self) -> &Connection {
+            &self.1
+        }
+    }
+}
 
 /// Profiler bus names, newest documented first (both may be active; upstream
 /// renamed the interface over the years and daemons often keep both).
@@ -62,8 +103,8 @@ struct PropertyBus<'c> {
 }
 
 impl PropertyBus<'_> {
-    fn proxy(&self) -> nuc_core::Result<zbus::blocking::Proxy<'_>> {
-        zbus::blocking::Proxy::new(
+    fn proxy(&self) -> nuc_core::Result<Proxy<'_>> {
+        Proxy::new(
             self.conn,
             self.dest.as_str(),
             self.path.as_str(),
@@ -252,7 +293,7 @@ pub fn nvme_health(device_node: &str) -> nuc_core::Result<NvmeHealth> {
             ))
         })?;
 
-    let ctrl_proxy = zbus::blocking::Proxy::new(
+    let ctrl_proxy = Proxy::new(
         &conn,
         "org.freedesktop.UDisks2",
         drive.as_str(),
@@ -422,7 +463,7 @@ pub fn conflict_scan() -> Vec<(String, String)> {
         Ok(c) => c,
         Err(e) => return vec![("systemd".into(), format!("system bus unavailable: {e}"))],
     };
-    let systemd = match zbus::blocking::Proxy::new(
+    let systemd = match Proxy::new(
         &conn,
         "org.freedesktop.systemd1",
         "/org/freedesktop/systemd1",
@@ -437,7 +478,7 @@ pub fn conflict_scan() -> Vec<(String, String)> {
         .collect()
 }
 
-fn unit_state(systemd: &zbus::blocking::Proxy<'_>, unit: &str) -> String {
+fn unit_state(systemd: &Proxy<'_>, unit: &str) -> String {
     let path: OwnedObjectPath = match systemd.call("GetUnit", &(unit,)) {
         Ok(p) => p,
         Err(e) => {
@@ -475,7 +516,7 @@ fn unit_state(systemd: &zbus::blocking::Proxy<'_>, unit: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use zbus::zvariant::{Array, Signature};
+    use zbus::{Array, Signature};
 
     fn attrs_from<'a>(pairs: Vec<(&'a str, Value<'a>)>) -> HashMap<String, Value<'a>> {
         pairs.into_iter().map(|(k, v)| (k.to_string(), v)).collect()
@@ -571,11 +612,11 @@ mod tests {
     #[test]
     fn decode_profiles_property() {
         // aa{sv}: [ {Profile: "balanced"} ] — same shape as the live daemon sends
-        let mut dict = zbus::zvariant::Dict::new(&Signature::Str, &Signature::Variant);
+        let mut dict = zbus::Dict::new(&Signature::Str, &Signature::Variant);
         dict.append(
             Value::Str("Profile".into()),
             // variant values arrive wrapped
-            Value::Value(Box::new(Value::Str("balanced".into()))),
+            Value::Variant(Box::new(Value::Str("balanced".into()))),
         )
         .unwrap();
         let dict_sig = Signature::dict(Signature::Str, Signature::Variant);
@@ -588,10 +629,7 @@ mod tests {
     #[test]
     fn decode_garbage_profiles() {
         assert!(profiles_from_value(&Value::U64(5)).is_empty());
-        let empty = Value::Dict(zbus::zvariant::Dict::new(
-            &Signature::Str,
-            &Signature::Variant,
-        ));
+        let empty = Value::Dict(zbus::Dict::new(&Signature::Str, &Signature::Variant));
         assert!(profiles_from_value(&empty).is_empty());
     }
 
