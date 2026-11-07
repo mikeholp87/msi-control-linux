@@ -299,10 +299,9 @@ impl CpuMonitor {
         );
         let delta = if energy >= pe {
             energy - pe
-        } else if let Some(r) = max_range {
-            r.saturating_sub(pe).saturating_add(energy)
         } else {
-            return None; // counter reset without a known range
+            // counter reset: needs a known range, otherwise no delta
+            max_range?.saturating_sub(pe).saturating_add(energy)
         };
         if !deltas_valid {
             return None;
