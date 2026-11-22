@@ -99,3 +99,7 @@ aggregates; automatic retention pruning).
 - `docs/hardware-checklist.md` — manual desktop/hardware verification steps
 - `docs/delivery-report.md` — final engineering summary + compatibility matrix
 - `docs/audit-report.md` — resolved bugs, verification and improvement priorities
+
+## Author
+
+Built by [Mike Holp](https://www.ai-automation-station.com/about.html) with AI coding tools. See more build guides on [AI Automation Station](https://www.ai-automation-station.com/guides.html), and more projects at [github.com/mikeholp87](https://github.com/mikeholp87).
