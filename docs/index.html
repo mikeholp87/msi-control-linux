@@ -1,0 +1,882 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#edeff5" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)" />
+    <title>NUC Control: hardware and power monitor for MSI mini PCs on Linux</title>
+    <meta name="description" content="NUC Control is a free, open source Rust and GTK4 hardware and power monitor for Linux. Sensors, CPU and GPU state, RAPL power, NVMe health and history, with honest Unavailable markers." />
+    <link rel="canonical" href="https://mikeholp87.github.io/msi-control-linux/" />
+    <link rel="icon" href="./nuc-control-icon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NUC Control" />
+    <meta property="og:title" content="NUC Control: hardware and power monitor for MSI mini PCs on Linux" />
+    <meta property="og:description" content="Native Linux app and CLI that reports what your mini PC hardware really exposes: sensors, CPU and GPU state, power, NVMe health and history. Nothing is invented." />
+    <meta property="og:url" content="https://mikeholp87.github.io/msi-control-linux/" />
+    <meta property="og:image" content="https://mikeholp87.github.io/msi-control-linux/assets/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="NUC Control dashboard in the dark theme with tiles for CPU usage, package power, temperature and power profile" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NUC Control: hardware and power monitor for MSI mini PCs on Linux" />
+    <meta name="twitter:description" content="Native Linux app and CLI that reports what your mini PC hardware really exposes: sensors, CPU and GPU state, power, NVMe health and history. Nothing is invented." />
+    <meta name="twitter:image" content="https://mikeholp87.github.io/msi-control-linux/assets/og.png" />
+    <meta name="twitter:image:alt" content="NUC Control dashboard in the dark theme with tiles for CPU usage, package power, temperature and power profile" />
+    <script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "NUC Control",
+  "description": "A free, open source Rust and GTK4 desktop app and CLI that monitors sensors, CPU and GPU state, power draw and NVMe health on Linux, verified on an MSI Cubi NUC.",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Linux",
+  "programmingLanguage": "Rust",
+  "url": "https://mikeholp87.github.io/msi-control-linux/",
+  "codeRepository": "https://github.com/mikeholp87/msi-control-linux",
+  "downloadUrl": "https://github.com/mikeholp87/msi-control-linux",
+  "license": "https://opensource.org/license/mit",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Mike Holp",
+    "url": "https://www.ai-automation-station.com/about.html",
+    "sameAs": [
+      "https://github.com/mikeholp87",
+      "https://www.ai-automation-station.com/"
+    ]
+  },
+  "dateModified": "2026-11-23"
+}
+    </script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #edeff5;
+        --paper: #fff;
+        --soft: #f6f7fb;
+        --ink: #14161f;
+        --muted: #4b5167;
+        --line: #d9ddea;
+        --blue: #4350e0;
+        --blue-ink: #3641c4;
+        --on-blue: #fff;
+        --green: #066a4a;
+        --amber: #8a5a00;
+        --code-bg: #171a26;
+        --code-ink: #e8eaf4;
+        --shadow: 0 24px 60px -28px rgba(20, 22, 31, 0.35);
+        font-family:
+          Inter,
+          "Segoe UI",
+          system-ui,
+          -apple-system,
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        scroll-behavior: smooth;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1117;
+          --paper: #171a23;
+          --soft: #1b1f2a;
+          --ink: #eef0f7;
+          --muted: #a9afc4;
+          --line: #2a2f3d;
+          --blue: #8b95ff;
+          --blue-ink: #a3abff;
+          --on-blue: #0f1117;
+          --green: #4cd3a1;
+          --amber: #f2c46d;
+          --code-bg: #0a0c12;
+          --shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.8);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        :root {
+          scroll-behavior: auto;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-width: 320px;
+      }
+      a {
+        color: var(--blue-ink);
+        text-underline-offset: 0.2em;
+      }
+      a:focus-visible,
+      button:focus-visible,
+      summary:focus-visible {
+        outline: 3px solid var(--blue);
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+      .skip {
+        position: absolute;
+        left: 12px;
+        top: -60px;
+        z-index: 10;
+        padding: 10px 14px;
+        border-radius: 8px;
+        background: var(--blue);
+        color: var(--on-blue);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .skip:focus {
+        top: 12px;
+      }
+      .visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      .wrap {
+        width: min(1080px, calc(100% - 40px));
+        margin: auto;
+      }
+      header {
+        height: 84px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: var(--ink);
+        font-size: 20px;
+        font-weight: 750;
+        letter-spacing: -0.03em;
+        text-decoration: none;
+      }
+      .brand img {
+        width: 36px;
+        height: 36px;
+        border-radius: 9px;
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+      .nav a {
+        color: var(--ink);
+        text-decoration: none;
+      }
+      .nav a:hover {
+        color: var(--blue-ink);
+        text-decoration: underline;
+      }
+      .nav .pill {
+        padding: 8px 14px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--paper);
+      }
+      main {
+        padding-top: 56px;
+      }
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 56px;
+        align-items: center;
+        padding: 24px 0 72px;
+      }
+      .eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 18px;
+        color: var(--green);
+        font-size: 13px;
+        font-weight: 750;
+      }
+      .eyebrow::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(40px, 5.6vw, 68px);
+        line-height: 1;
+        letter-spacing: -0.055em;
+      }
+      .lead {
+        max-width: 34em;
+        margin: 22px 0 0;
+        color: var(--muted);
+        font-size: 18px;
+        line-height: 1.65;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 28px;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        min-height: 46px;
+        padding: 0 20px;
+        border: 1px solid var(--blue);
+        border-radius: 8px;
+        background: var(--blue);
+        color: var(--on-blue);
+        font-size: 15px;
+        font-weight: 750;
+        text-decoration: none;
+      }
+      .button:hover {
+        filter: brightness(1.08);
+      }
+      .button.secondary {
+        border-color: var(--line);
+        background: var(--paper);
+        color: var(--ink);
+      }
+      .badges {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 26px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .badges li {
+        padding: 5px 11px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--paper);
+        color: var(--muted);
+        font-size: 12.5px;
+        font-weight: 650;
+      }
+      .badges .preview {
+        color: var(--amber);
+      }
+      .shot {
+        margin: 0;
+      }
+      .shot img {
+        display: block;
+        width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+      .shot figcaption {
+        margin-top: 10px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      section {
+        scroll-margin-top: 24px;
+      }
+      .section-head {
+        max-width: 640px;
+        margin-bottom: 32px;
+      }
+      h2 {
+        margin: 0;
+        font-size: clamp(26px, 3.2vw, 36px);
+        letter-spacing: -0.04em;
+        line-height: 1.1;
+      }
+      .section-head p {
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.65;
+      }
+      .features,
+      .shots,
+      .platforms,
+      .faq,
+      .safety {
+        padding: 72px 0 0;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+      .card {
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--paper);
+      }
+      .card h3 {
+        margin: 0 0 8px;
+        font-size: 16px;
+        letter-spacing: -0.02em;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .card .tag {
+        display: inline-block;
+        margin-top: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: var(--soft);
+        color: var(--muted);
+        font-size: 11.5px;
+        font-weight: 700;
+      }
+      .shots-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--paper);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      td {
+        color: var(--muted);
+        line-height: 1.55;
+      }
+      td:first-child {
+        color: var(--ink);
+        font-weight: 650;
+      }
+      .install {
+        margin-top: 72px;
+        padding: 40px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--paper);
+      }
+      .install > .section-head {
+        margin-bottom: 24px;
+      }
+      .steps {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 22px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        counter-reset: step;
+      }
+      .steps > li {
+        position: relative;
+        padding-left: 46px;
+        counter-increment: step;
+      }
+      .steps > li::before {
+        content: counter(step);
+        position: absolute;
+        left: 0;
+        top: -2px;
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--blue);
+        color: var(--on-blue);
+        font-size: 14px;
+        font-weight: 800;
+      }
+      .steps h3 {
+        margin: 0 0 6px;
+        font-size: 16px;
+        letter-spacing: -0.02em;
+      }
+      .steps p {
+        margin: 0 0 10px;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.6;
+      }
+      .fp {
+        display: block;
+        margin: 0 0 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+        color: var(--ink);
+        font:
+          600 13px/1.5 ui-monospace,
+          "SFMono-Regular",
+          Menlo,
+          Consolas,
+          monospace;
+        overflow-wrap: anywhere;
+      }
+      .codebox {
+        position: relative;
+      }
+      .code {
+        margin: 0;
+        padding: 20px 76px 20px 20px;
+        overflow-x: auto;
+        border-radius: 10px;
+        background: var(--code-bg);
+        color: var(--code-ink);
+        font:
+          13px/1.7 ui-monospace,
+          "SFMono-Regular",
+          Menlo,
+          Consolas,
+          monospace;
+        tab-size: 2;
+      }
+      .copy {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        min-height: 32px;
+        padding: 0 12px;
+        border: 1px solid rgba(255, 255, 255, 0.22);
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        color: #e8eaf4;
+        font: 700 12px/1 inherit;
+        cursor: pointer;
+      }
+      .copy:hover {
+        background: rgba(255, 255, 255, 0.16);
+      }
+      .fine {
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+      .fine code,
+      .steps p code,
+      .card p code,
+      details p code {
+        font:
+          12.5px ui-monospace,
+          "SFMono-Regular",
+          Menlo,
+          Consolas,
+          monospace;
+      }
+      .safety-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+      details {
+        border-bottom: 1px solid var(--line);
+      }
+      details:first-of-type {
+        border-top: 1px solid var(--line);
+      }
+      summary {
+        padding: 18px 4px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+      }
+      details p {
+        max-width: 70ch;
+        margin: 0 0 18px;
+        padding: 0 4px;
+        color: var(--muted);
+        font-size: 15px;
+        line-height: 1.7;
+      }
+      footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px 24px;
+        margin-top: 80px;
+        padding: 24px 0 36px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 13px;
+      }
+      footer nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 20px;
+      }
+      @media (max-width: 960px) {
+        .grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 760px) {
+        .wrap {
+          width: min(100% - 32px, 540px);
+        }
+        header {
+          height: 70px;
+        }
+        .nav {
+          gap: 14px;
+          font-size: 13px;
+        }
+        .nav .hide-sm {
+          display: none;
+        }
+        main {
+          padding-top: 32px;
+        }
+        .hero {
+          grid-template-columns: 1fr;
+          gap: 32px;
+          padding: 12px 0 48px;
+        }
+        .features,
+        .shots,
+        .platforms,
+        .faq,
+        .safety {
+          padding-top: 52px;
+        }
+        .grid,
+        .shots-grid,
+        .safety-grid {
+          grid-template-columns: 1fr;
+        }
+        .install {
+          margin-top: 52px;
+          padding: 24px 18px;
+        }
+        .steps > li {
+          padding-left: 0;
+          padding-top: 40px;
+        }
+        .steps > li::before {
+          top: 0;
+        }
+        .code {
+          font-size: 12px;
+        }
+      }
+    
+      .shot img.shot-small {
+        max-height: 560px;
+        object-fit: contain;
+      }
+</style>
+  </head>
+  <body>
+    <a class="skip" href="#content">Skip to content</a>
+    <div class="wrap">
+      <header>
+        <a class="brand" href="./" aria-label="NUC Control home"
+          ><img src="./nuc-control-icon.svg" alt="" width="36" height="36" />NUC Control</a
+        >
+        <nav class="nav" aria-label="Main navigation">
+          <a class="hide-sm" href="#features">Features</a>
+          <a class="hide-sm" href="#screenshots">Screenshots</a>
+          <a href="#install">Install</a>
+          <a class="hide-sm" href="#faq">FAQ</a>
+          <a class="pill" href="https://github.com/mikeholp87/msi-control-linux">GitHub</a>
+        </nav>
+      </header>
+      <main id="content">
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <div class="eyebrow">Free and open source hardware monitor for Linux</div>
+            <h1 id="hero-title">Know what your mini PC is really doing.</h1>
+            <p class="lead">NUC Control is a native Linux app and command line tool that reports what the hardware actually exposes: temperatures, CPU and GPU state, power draw, NVMe health and a history chart. When a value is not available, it says so instead of guessing.</p>
+            <div class="actions">
+              <a class="button" href="#install">Install on Debian</a>
+              <a class="button secondary" href="https://github.com/mikeholp87/msi-control-linux">View source</a>
+            </div>
+            <ul class="badges" aria-label="Highlights">
+              <li>MIT licensed</li>
+              <li>Read-only by default</li>
+              <li>Rust, GTK 4 and libadwaita</li>
+              <li>No telemetry</li>
+              <li class="preview">Verified on one machine</li>
+            </ul>
+          </div>
+          <figure class="shot">
+            <picture>
+              <source type="image/webp" srcset="./assets/hero-640.webp 640w, ./assets/hero-1280.webp 1280w" sizes="(max-width: 760px) calc(100vw - 32px), 580px" />
+              <img src="./assets/hero-1280.webp" width="1280" height="620" fetchpriority="high" alt="NUC Control dashboard with tiles for CPU usage, package power, hottest core, GPU frequencies, memory, fan, power profile and session peak power" />
+            </picture>
+            <figcaption>The Dashboard page, showing live values from the test machine.</figcaption>
+          </figure>
+        </section>
+
+        <section id="features" class="features" aria-labelledby="features-title">
+          <div class="section-head">
+            <h2 id="features-title">Everything the hardware reports, nothing it does not</h2>
+            <p>NUC Control reads kernel interfaces and system services and labels every value honestly. It never invents a number and never touches fan or thermal protection.</p>
+          </div>
+          <div class="grid">
+            <article class="card">
+              <h3>Dashboard</h3>
+              <p>Eight tiles: CPU usage, package power, hottest core, GPU frequencies, memory, fan, power profile and session peak power.</p>
+            </article>
+            <article class="card">
+              <h3>Sensors</h3>
+              <p>One row per kernel temperature and fan sensor, with warning and critical limits and alarm flags as reported by hwmon.</p>
+            </article>
+            <article class="card">
+              <h3>Power profiles</h3>
+              <p>See the active profile and switch it through power-profiles-daemon. The switch is confirmed by reading the daemon's answer back.</p>
+            </article>
+            <article class="card">
+              <h3>History</h3>
+              <p>A live chart of the session plus a WAL-mode SQLite history with per-minute aggregates and automatic pruning.</p>
+            </article>
+            <article class="card">
+              <h3>NVMe health</h3>
+              <p>SMART health through UDisks2, with an honest refusal for devices that do not report it.</p>
+            </article>
+            <article class="card">
+              <h3>Diagnostics</h3>
+              <p>Read-only checks across system, thermal, CPU, GPU, power, storage and services, with exportable Markdown and JSON reports.</p>
+            </article>
+            <article class="card">
+              <h3>Alerts</h3>
+              <p>Desktop notifications for CPU or NVMe temperature, fan fault and throttling, debounced with hysteresis and a cooldown.</p>
+            </article>
+            <article class="card">
+              <h3>Command line</h3>
+              <p>The nuc-control command prints any section as text or JSON, for scripts and quick checks.</p>
+              <span class="tag">nuc-control --sensors --json</span>
+            </article>
+          </div>
+        </section>
+
+        <section id="screenshots" class="shots" aria-labelledby="shots-title">
+          <div class="section-head">
+            <h2 id="shots-title">Sensors and power at a glance</h2>
+            <p>Six pages: Dashboard, Sensors, Power, History, Diagnostics and Settings.</p>
+          </div>
+          <div class="shots-grid">
+            <figure class="shot">
+              <picture>
+              <source type="image/webp" srcset="./assets/shot-a-640.webp 640w, ./assets/shot-a-1280.webp 1280w" sizes="(max-width: 760px) calc(100vw - 32px), 528px" />
+              <img src="./assets/shot-a-640.webp" width="640" height="290" loading="lazy" alt="NUC Control Sensors page listing temperature sensors with limits" />
+            </picture>
+              <figcaption>The Sensors page (live values from the test machine).</figcaption>
+            </figure>
+            <figure class="shot">
+              <picture>
+              <source type="image/webp" srcset="./assets/shot-b-640.webp 640w, ./assets/shot-b-1280.webp 1280w" sizes="(max-width: 760px) calc(100vw - 32px), 528px" />
+              <img src="./assets/shot-b-640.webp" width="640" height="290" loading="lazy" alt="NUC Control History page with a live chart of temperature and power" />
+            </picture>
+              <figcaption>The History page chart (live values from the test machine).</figcaption>
+            </figure>
+          </div>
+        </section>
+
+        <section id="platforms" class="platforms" aria-labelledby="platforms-title">
+          <div class="section-head">
+            <h2 id="platforms-title">Supported platforms</h2>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Area</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>MSI PRO RPL-U Cubi NUC 1M (MS-B0B1)</td>
+                  <td>Verified: Intel Core 7 150U, Debian forky/sid, kernel 7.2.12, GNOME and KDE on Wayland.</td>
+                </tr>
+                <tr>
+                  <td>Other Linux machines</td>
+                  <td>Not verified. Missing sensors appear as Unavailable rather than as zero, but other hardware has not been tested.</td>
+                </tr>
+                <tr>
+                  <td>Fans</td>
+                  <td>This platform exposes only an ACPI fan interface, so there is no fan control and the app says so.</td>
+                </tr>
+                <tr>
+                  <td>GPU utilization</td>
+                  <td>Needs CAP_PERFMON for intel_gpu_top. Without it the app reports that it needs authorization instead of guessing.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="install" class="install" aria-labelledby="install-title">
+          <div class="section-head">
+            <h2 id="install-title">Build and install on Debian</h2>
+            <p>NUC Control has no prebuilt package yet. Build the .deb on a native amd64 Debian or Ubuntu machine with GTK 4.10 and libadwaita 1.4 or newer.</p>
+          </div>
+          <ol class="steps">
+            <li>
+              <h3>Get the source</h3>
+              <div class="codebox">
+                <pre class="code" tabindex="0"><code>sudo apt install git build-essential dpkg-dev
+git clone https://github.com/mikeholp87/msi-control-linux
+cd msi-control-linux</code></pre>
+              </div>
+            </li>
+            <li>
+              <h3>Build the package</h3>
+              <div class="codebox">
+                <pre class="code" tabindex="0"><code>./scripts/build-deb.sh</code></pre>
+              </div>
+              <p class="fine">Runtime library dependencies are derived from the built binaries with <code>dpkg-shlibdeps</code>.</p>
+            </li>
+            <li>
+              <h3>Install and launch</h3>
+              <div class="codebox">
+                <pre class="code" tabindex="0"><code>sudo apt install ./target/debian/nuc-control_*_amd64.deb
+nuc-gui</code></pre>
+              </div>
+              <p class="fine">Or run <code>nuc-control --help</code> for the command line. Profile switching needs <code>power-profiles-daemon</code> and NVMe health needs UDisks2.</p>
+            </li>
+          </ol>
+        </section>
+
+        <section id="safety" class="safety" aria-labelledby="safety-title">
+          <div class="section-head">
+            <h2 id="safety-title">Honest by design</h2>
+          </div>
+          <div class="safety-grid">
+            <article class="card">
+              <h3>Read-only by default</h3>
+              <p>The only write is a power profile switch, authorized by polkit through power-profiles-daemon and checked afterwards.</p>
+            </article>
+            <article class="card">
+              <h3>Unavailable is not zero</h3>
+              <p>A missing value shows as Unavailable in the app and null in JSON. Cached firmware readings are labeled with their age.</p>
+            </article>
+            <article class="card">
+              <h3>No root, no telemetry</h3>
+              <p>No root daemon, no background service installed by default and nothing sent off your machine.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="faq" class="faq" aria-labelledby="faq-title">
+          <div class="section-head">
+            <h2 id="faq-title">Questions</h2>
+          </div>
+          <details>
+            <summary>Does NUC Control change my fan or thermal settings?</summary>
+            <p>No. It never modifies fan or thermal protection. The only thing it can change is the power profile, through power-profiles-daemon.</p>
+          </details>
+          <details>
+            <summary>Will it work on my MSI or another mini PC?</summary>
+            <p>It is verified on one MSI Cubi NUC. On other hardware it should report what the kernel exposes and mark the rest Unavailable, but that is untested.</p>
+          </details>
+          <details>
+            <summary>Why does the GPU tile say Unavailable?</summary>
+            <p>Reading GPU utilization with intel_gpu_top needs CAP_PERFMON. The app does not run as root, so it tells you that instead of showing a made-up number.</p>
+          </details>
+          <details>
+            <summary>Where is my data stored?</summary>
+            <p>Settings in <code>~/.config/nuc-control/config.toml</code> and history in <code>~/.local/share/nuc-control/history.db</code>. Recording raw samples is opt-in.</p>
+          </details>
+          <details>
+            <summary>Where do I report a bug?</summary>
+            <p>Open an issue on <a href="https://github.com/mikeholp87/msi-control-linux/issues">GitHub</a>.</p>
+          </details>
+        </section>
+      </main>
+      <footer>
+        <span>NUC Control is free and open source under the MIT license. Built by Mike Holp.</span>
+        <nav aria-label="Footer">
+          <a href="https://github.com/mikeholp87/msi-control-linux">GitHub</a>
+          <a href="https://github.com/mikeholp87/msi-control-linux/issues">Issues</a>
+          <a href="https://github.com/mikeholp87/msi-control-linux/blob/main/LICENSE">License</a>
+          <a href="https://github.com/mikeholp87/msi-control-linux/blob/main/docs/usage.md">Usage</a>
+          <a href="https://github.com/mikeholp87/msi-control-linux/blob/main/docs/hardware-capabilities.md">Hardware capabilities</a>
+          <a href="https://www.ai-automation-station.com/guides.html">Build guides</a>
+          <a href="https://www.ai-automation-station.com/">AI Automation Station</a>
+        </nav>
+        <nav aria-label="Other projects">
+          <a href="https://mikeholp87.github.io/Tasky/">Tasky</a>
+          <a href="https://mikeholp87.github.io/Luma-Launcher/">Luma Launcher</a>
+          <a href="https://mikeholp87.github.io/Restic-Studio/">Restic Studio</a>
+          <a href="https://mikeholp87.github.io/">All projects</a>
+        </nav>
+      </footer>
+    </div>
+    <p id="copy-status" class="visually-hidden" role="status" aria-live="polite"></p>
+    <script>
+      var copyStatus = document.getElementById("copy-status");
+      document.querySelectorAll(".codebox").forEach(function (box) {
+        var code = box.querySelector("code");
+        if (!code || !navigator.clipboard) return;
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "copy";
+        button.textContent = "Copy";
+        button.setAttribute("aria-label", "Copy commands to clipboard");
+        button.addEventListener("click", function () {
+          navigator.clipboard.writeText(code.textContent).then(function () {
+            button.textContent = "Copied";
+            copyStatus.textContent = "Commands copied to clipboard";
+            setTimeout(function () {
+              button.textContent = "Copy";
+              copyStatus.textContent = "";
+            }, 1800);
+          });
+        });
+        box.appendChild(button);
+      });
+    </script>
+  </body>
+</html>
