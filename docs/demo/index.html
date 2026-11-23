@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Try NUC Control: Interactive Linux Hardware Monitor Demo</title>
+    <meta name="description" content="Explore the NUC Control dashboard, sensors, power profiles, history chart and diagnostics in your browser. Simulated readings only." />
+    <link rel="canonical" href="https://mikeholp87.github.io/msi-control-linux/demo/" />
+    <link rel="icon" href="../nuc-control-icon.svg" type="image/svg+xml" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Try NUC Control in your browser" />
+    <meta property="og:description" content="Explore the NUC Control dashboard, sensors, power profiles, history chart and diagnostics in your browser. Simulated readings only." />
+    <meta property="og:url" content="https://mikeholp87.github.io/msi-control-linux/demo/" />
+    <meta property="og:image" content="https://mikeholp87.github.io/msi-control-linux/assets/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <style>
+      :root { color-scheme: light dark; --page:#edeff5; --ink:#14161f; --muted:#4b5167; --line:#d9ddea; --blue:#4350e0; --on-blue:#fff; --warn-bg:#fff4d6; --warn-ink:#5c4200;
+        font-family: Inter,"Segoe UI",system-ui,sans-serif; background:var(--page); color:var(--ink); }
+      @media (prefers-color-scheme: dark) { :root { --page:#0f1117; --ink:#eef0f7; --muted:#a9afc4; --line:#2a2f3d; --blue:#8b95ff; --on-blue:#0f1117; --warn-bg:#2d2610; --warn-ink:#f4d98a; } }
+      * { box-sizing: border-box; }
+      body { margin:0; line-height:1.5; }
+      a { color: var(--blue); }
+      .wrap { max-width:980px; margin:0 auto; padding:0 16px 40px; }
+      .top { display:flex; flex-wrap:wrap; gap:8px 20px; justify-content:space-between; align-items:center; padding-block:14px 6px; }
+      .top nav { display:flex; gap:16px; font-size:15px; }
+      .notice { padding:10px 16px; border-radius:10px; background:var(--warn-bg); color:var(--warn-ink); font-size:14px; }
+      h1 { margin:14px 0 4px; font-size:clamp(24px,3.5vw,34px); letter-spacing:-.02em; }
+      .lede { margin:0 0 14px; color:var(--muted); }
+      .steps { margin:0 0 14px; padding-left:20px; color:var(--muted); font-size:14.5px; }
+      code { font-family:ui-monospace,Menlo,monospace; font-size:12.5px; padding:1px 5px; border-radius:5px; border:1px solid var(--line); }
+      .win { --w-bg:#242424; --w-head:#303030; --w-ink:#f2f2f2; --w-dim:#a8a8a8; --w-field:#1f1f1f; --w-btn:#3c3c3c; --w-btn-h:#4a4a4a; --w-edge:#4a4a4a; --w-accent:#3584e4; --w-sel:#1a5fb4;
+        --w-teal:#2fbfae; --w-amber:#e5a93d; --w-purple:#a67be0; --w-gray:#8a8a8a; --w-bad:#e0556a; --w-ok:#4cc38a;
+        background:var(--w-bg); color:var(--w-ink); border:1px solid var(--w-edge); border-radius:12px; overflow:hidden; box-shadow:0 30px 70px -30px rgba(0,0,0,.55); font-size:14px; }
+      .win.light { --w-bg:#fafafa; --w-head:#ebebeb; --w-ink:#1e1e1e; --w-dim:#5e5e5e; --w-field:#fff; --w-btn:#ececec; --w-btn-h:#e0e0e0; --w-edge:#cfcfcf; --w-accent:#1c71d8; --w-sel:#3584e4; --w-teal:#118a7c; --w-amber:#a86f00; --w-purple:#7048b8; --w-gray:#6e6e6e; --w-bad:#b3223a; --w-ok:#18794e; }
+      .title { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 14px; background:var(--w-head); border-bottom:1px solid var(--w-edge); }
+      .title strong { flex:1; text-align:center; }
+      .win select, .win input[type=text], .win input[type=search] { font:inherit; color:inherit; background:var(--w-field); border:1px solid var(--w-edge); border-radius:8px; padding:7px 10px; }
+      .win select { background:var(--w-btn); }
+      .win input:focus, .win select:focus, .win button:focus-visible { outline:2px solid var(--w-accent); outline-offset:1px; }
+      .win button { font:inherit; color:inherit; background:var(--w-btn); border:1px solid var(--w-edge); border-radius:8px; padding:7px 12px; cursor:pointer; }
+      .win button:hover { background:var(--w-btn-h); }
+      .win button.primary, .win button[aria-pressed=true], .win button[aria-current=page] { background:var(--w-sel); border-color:var(--w-sel); color:#fff; }
+      .win button:disabled { opacity:.5; cursor:not-allowed; }
+      .statusline { padding:8px 16px; color:var(--w-dim); border-top:1px solid var(--w-edge); min-height:36px; }
+      .bar { padding:10px 14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; border-bottom:1px solid var(--w-edge); }
+      .bar input[type=text] { flex:1; min-width:200px; }
+      .seg { display:flex; gap:6px; flex-wrap:wrap; }
+      .muted { color:var(--w-dim); }
+      table { width:100%; border-collapse:collapse; font-size:13px; }
+      th, td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--w-edge); }
+      th { color:var(--w-dim); font-weight:600; }
+      .cta { display:flex; flex-wrap:wrap; gap:12px; margin-top:18px; }
+      .cta a { padding:10px 18px; border-radius:8px; background:var(--blue); color:var(--on-blue); font-weight:700; text-decoration:none; }
+      .cta a.secondary { background:transparent; color:var(--blue); border:1px solid var(--line); }
+      @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+
+      .nuc { display:grid; grid-template-columns:150px 1fr; min-height:440px; }
+      .side { border-right:1px solid var(--w-edge); padding:10px; display:grid; gap:6px; align-content:start; }
+      .side button { text-align:left; }
+      .page { padding:14px 16px; }
+      .page h2 { margin:0 0 10px; font-size:18px; }
+      .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
+      .tile { border:1px solid var(--w-edge); border-radius:10px; padding:10px 12px; }
+      .tile span { display:block; color:var(--w-dim); font-size:13px; } .tile b { font-size:20px; }
+      .chart { border:1px solid var(--w-edge); border-radius:10px; background:var(--w-field); }
+      .ok { color:var(--w-ok); } .warn { color:var(--w-amber); } .bad { color:var(--w-bad); }
+      @media (max-width:640px) { .nuc { grid-template-columns:1fr; } .side { grid-auto-flow:column; overflow-x:auto; border-right:0; border-bottom:1px solid var(--w-edge); } }
+</style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="top">
+        <strong>NUC Control</strong>
+        <nav aria-label="Demo navigation"><a href="../">Overview</a><a href="../#install">Install</a><a href="https://github.com/mikeholp87/msi-control-linux">GitHub</a></nav>
+      </div>
+      <div class="notice" role="note">This is a browser demo with simulated readings. It cannot read your hardware, and nothing leaves this page.</div>
+      <h1>Try NUC Control</h1>
+      <p class="lede">A walk through the real app's pages, using simulated readings:</p>
+      <ol class="steps"><li>Watch the <strong>Dashboard</strong> tiles update, then open <strong>Sensors</strong>.</li><li>On <strong>Power</strong>, switch the profile and see the dashboard follow.</li><li>Run the <strong>Diagnostics</strong> checks and note that the GPU line says Unavailable instead of guessing.</li></ol>
+      <div class="win" id="win" role="application" aria-label="NUC Control demo">
+        <div class="title">
+          <span aria-hidden="true">☰</span><strong>NUC Control</strong>
+          <label style="position:absolute;left:-9999px" for="theme">Theme</label>
+          <select id="theme"><option value="system">System theme</option><option value="light">Light</option><option value="dark">Dark</option></select>
+        </div>
+
+        <div class="nuc">
+          <nav class="side" aria-label="Pages">
+            <button type="button" data-p="dash" aria-current="page">Dashboard</button>
+            <button type="button" data-p="sens">Sensors</button>
+            <button type="button" data-p="power">Power</button>
+            <button type="button" data-p="hist">History</button>
+            <button type="button" data-p="diag">Diagnostics</button>
+          </nav>
+          <div class="page" id="page"></div>
+        </div>
+        <div class="statusline" id="status" role="status" aria-live="polite">Sample readings only. The real app reads your kernel's sensors.</div>
+
+      </div>
+      <div class="cta"><a href="../#install">Install NUC Control on Linux</a><a class="secondary" href="../">Back to the overview</a></div>
+    </div>
+    <script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+$("theme").addEventListener("change", () => {
+  const v = $("theme").value;
+  const dark = v === "dark" || (v === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+  $("win").classList.toggle("light", !dark);
+});
+$("theme").dispatchEvent(new Event("change"));
+matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => $("theme").dispatchEvent(new Event("change")));
+
+let t = 0, profile = "balanced", page = "dash"; const hist = [];
+const wob = (b, a, p) => b + a * Math.sin(t / p) + a * 0.4 * Math.sin(t / (p * 0.37));
+const read = () => ({ cpu: Math.max(2, wob(22, 14, 3)), pkgW: Math.max(5, wob(14, 6, 4) + (profile === "performance" ? 6 : profile === "power-saver" ? -5 : 0)), hot: wob(68, 8, 5), mem: 19.4, gpu: Math.round(450 + 20 * Math.sin(t / 7)) });
+const SENS = [["Package id 0", 0], ["Core 0", 1], ["Core 4", -6], ["Core 8", -9], ["Composite (nvme)", -14], ["temp1 (acpitz)", -40], ["temp1 (iwlwifi_1)", -16]];
+function draw() {
+  const r = read();
+  if (page === "dash") $("page").innerHTML = `<h2>Dashboard</h2><div class="tiles">
+    <div class="tile"><span>CPU usage</span><b>${r.cpu.toFixed(1)}%</b></div><div class="tile"><span>Package power</span><b>${r.pkgW.toFixed(2)} W</b></div>
+    <div class="tile"><span>Hottest CPU core</span><b>${r.hot.toFixed(1)} °C</b></div><div class="tile"><span>GPU freq (act/max)</span><b>${r.gpu}/1300 MHz</b></div>
+    <div class="tile"><span>Memory used</span><b>${r.mem} GiB (62 %)</b></div><div class="tile"><span>Fan</span><b>252</b><span>ACPI-reported value, not a tachometer</span></div>
+    <div class="tile"><span>Power profile</span><b>${profile}</b></div><div class="tile"><span>Session peak power</span><b>${Math.max(...hist.map((h) => h.pkgW), r.pkgW).toFixed(2)} W</b></div></div>
+    <p class="muted">Readings come straight from kernel interfaces. Delta-based values need one valid interval after startup.</p>`;
+  else if (page === "sens") $("page").innerHTML = `<h2>Sensors</h2><table><thead><tr><th>Sensor</th><th>Temperature</th><th>Limits</th></tr></thead><tbody>${SENS.map(([n, d]) => `<tr><td>${n}</td><td>${(r.hot + d + 0.3 * Math.sin(t)).toFixed(1)} °C</td><td>${d === -14 ? "warn 89.8 / crit 93.8 °C" : d > -30 ? "warn 100 / crit 100 °C" : "none reported"}</td></tr>`).join("")}</tbody></table>`;
+  else if (page === "power") $("page").innerHTML = `<h2>Power</h2><p>Active profile: <strong>${profile}</strong></p><div class="bar" style="border:0;padding:0"><select id="prof" aria-label="Profile"><option>power-saver</option><option>balanced</option><option>performance</option></select><button type="button" id="setp" class="primary">Switch profile</button></div><p class="muted">In the real app the switch goes through polkit and power-profiles-daemon, and is confirmed by reading the daemon's answer back. CPU governor, EPP and turbo are shown read-only.</p>`, $("prof").value = profile, $("setp").onclick = () => { profile = $("prof").value; $("status").textContent = "Profile switched to " + profile + " and confirmed by re-reading the daemon."; draw(); };
+  else if (page === "hist") {
+    const W = 600, H = 200, pt = (k, lo, hi) => hist.map((h, i) => `${(i / 59 * W).toFixed(1)},${(H - (h[k] - lo) / (hi - lo) * H).toFixed(1)}`).join(" ");
+    $("page").innerHTML = `<h2>History</h2><p class="muted">Live session · temperature red · power blue · utilization green</p><svg class="chart" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Live chart"><polyline fill="none" stroke="#e0556a" stroke-width="2" points="${pt("hot", 50, 90)}"/><polyline fill="none" stroke="#4a8bf0" stroke-width="2" points="${pt("pkgW", 0, 28)}"/><polyline fill="none" stroke="#4cc38a" stroke-width="2" points="${pt("cpu", 0, 60)}"/></svg><p class="muted">Database: 0 samples · recording is opt-in and off in this demo.</p>`;
+  }
+}
+function diag() {
+  const rows = [["System", "ok", "Kernel and DMI identity read"], ["Thermal", "ok", "All temperature sensors readable"], ["Cooling", "warn", "acpi_fan value is state-uncertain, not a tachometer"], ["CPU", "ok", "intel_pstate active, turbo available"], ["GPU", "na", "unavailable: intel_gpu_top requires CAP_PERFMON"], ["Power", "ok", "RAPL package energy readable"], ["Storage", "ok", "NVMe SMART health via UDisks2: passed"], ["Services", "ok", "power-profiles-daemon running"]];
+  const lab = { ok: '<span class="ok">ok</span>', warn: '<span class="warn">warning</span>', na: '<span class="muted">unavailable</span>' };
+  $("page").innerHTML = `<h2>Diagnostics</h2><div class="bar" style="border:0;padding:0 0 8px"><button type="button" id="run" class="primary">Run checks</button><button type="button" id="exp">Export report</button></div><div id="res" class="muted">Press Run checks. All checks are read-only.</div>`;
+  $("run").onclick = async () => { $("res").textContent = "Running…"; await new Promise((r) => setTimeout(r, 600)); $("res").innerHTML = `<table><tbody>${rows.map(([n, s, m]) => `<tr><td>${n}</td><td>${lab[s]}</td><td>${m}</td></tr>`).join("")}</tbody></table>`; };
+  $("exp").onclick = () => { $("status").textContent = "In the real app this writes diagnostics-report.md and .json to ~/.local/share/nuc-control/. Nothing is written in this demo."; };
+}
+document.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => { page = b.dataset.p; document.querySelectorAll("[data-p]").forEach((x) => x.toggleAttribute("aria-current", x === b) || (x !== b && x.removeAttribute("aria-current"))); b.setAttribute("aria-current", "page"); page === "diag" ? diag() : draw(); }));
+setInterval(() => { t++; const r = read(); hist.push(r); if (hist.length > 60) hist.shift(); if (page !== "diag" && page !== "power") draw(); }, 1500);
+for (let i = 0; i < 40; i++) { t++; hist.push(read()); }
+draw();
+
+    </script>
+  </body>
+</html>
