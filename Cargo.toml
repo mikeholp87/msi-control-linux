@@ -29,7 +29,7 @@ serde_json = "1"
 toml = "0.8"
 thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
-rusqlite = { version = "0.37", features = ["bundled"] }
+rusqlite = { version = "0.43", features = ["bundled"] }
 zbus = "6"
 
 [workspace.lints.clippy]
