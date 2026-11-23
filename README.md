@@ -1,5 +1,7 @@
 # NUC Control — MSI mini PC hardware & power monitor (Linux)
 
+[![License](https://img.shields.io/github/license/mikeholp87/msi-control-linux)](https://github.com/mikeholp87/msi-control-linux/blob/main/LICENSE)
+
 Native Rust/GTK4 desktop app + CLI that reports what the hardware actually exposes:
 sensors, CPU/GPU state, RAPL power counters, NVMe SMART health, power-profile state,
 history in SQLite, and read-only diagnostics — with honest `Unavailable` markers for
